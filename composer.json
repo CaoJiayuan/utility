@@ -1,0 +1,25 @@
+{
+    "name": "caojiayuan/utility",
+    "description": "Useful utilities for php",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "cjy",
+            "email": "cjy632258@hotmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "CaoJiayuan\\Utility\\": "src/"
+        },
+        "files":[
+            "src/helpers.php"
+        ]
+    },
+    "minimum-stability": "dev",
+    "require": {},
+    "suggest": {
+        "guzzlehttp/guzzle": "Required to make http request."
+    }
+}
