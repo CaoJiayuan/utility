@@ -9,6 +9,8 @@
 namespace CaoJiayuan\Utility\Promise;
 
 
+use CaoJiayuan\Utility\Exceptions\UnhandledPromiseException;
+
 class Promise implements PromiseInterface
 {
 
@@ -19,50 +21,106 @@ class Promise implements PromiseInterface
     protected $then;
 
     protected $catch;
-    /**
-     * @var array
-     */
-    private $params;
+
+    protected $fulfilled = null;
+    protected $rejected = null;
+    protected $next = null;
+
 
     /**
      * Promise constructor.
      * @param $executor
-     * @param array $params
      */
-    public function __construct($executor, $params = [])
+    public function __construct($executor)
     {
+        $this->status = static::STATUS_PENDING;
         $this->executor = use_as_callable($executor);
-        $this->params = $params;
     }
 
-    public function then(callable $cb)
+    public function then(callable $fulfilled = null, callable $rejected = null)
     {
-        return new static(function ($resolve, $reject) use ($cb) {
-            $result = $this->resolveIfNotResolved($reject);
+        $this->fulfilled = $fulfilled;
+        $this->rejected = $rejected;
+        return $this;
+    }
 
-            call_user_func($cb, $result);
-            return $resolve();
+    protected function next(callable $fulfilled = null, callable $rejected = null)
+    {
+        $this->next = new static(function ($resolve, $reject) use ($fulfilled) {
+
+
+            call_user_func_array($this->executor, [use_as_callable($fulfilled), $reject]);
+
         });
+        $this->next->rejected($rejected);
+
+        return $this->next;
     }
 
     public static function resolve($resolve)
     {
-
+        return new static($resolve);
     }
 
-    public function resolveIfNotResolved(callable $reject)
+    public static function reject($reason)
     {
-        try {
-            $result = call_user_func_array($this->executor, $this->params);
-        } catch (\Exception $exception) {
-            return call_user_func_array($reject, [$exception]);
+        $promise = new static(function ($resolve, $rejected) use ($reason) {
+            $rejected($reason);
+        });
+
+        return $promise;
+    }
+
+    public function resolveIfNotResolved()
+    {
+        $fulfilled = $this->fulfilled;
+        $reject = $this->rejected;
+        if ($this->status == static::STATUS_PENDING) {
+            $rejector = $this->getRejector();
+            try {
+                $value = call_user_func_array($this->executor, [use_as_callable($fulfilled), $rejector]);
+                $this->status = static::STATUS_FULFILLED;
+                return static::resolve($value);
+            } catch (UnhandledPromiseException $exception) {
+                if (is_null($reject)) {
+                    $this->status = static::STATUS_REJECTED;
+                    throw $exception;
+                }
+                $this->status = static::STATUS_FULFILLED;
+                return new static(function ($res, $rej) use ($reject, $exception) {
+                    $val = call_user_func($reject, $exception->getReason());
+
+                    $res($val);
+                });
+            }
         }
 
-        return $result;
+        return $this;
     }
 
     public function rejected(callable $cb)
     {
-        // TODO: Implement rejected() method.
+        return $this->then(null, $cb);
+    }
+
+
+    public function __destruct()
+    {
+        $this->resolveIfNotResolved();
+    }
+
+    /**
+     * @return \Closure
+     */
+    protected function getRejector(): \Closure
+    {
+        return function ($reason) {
+            if (is_object($reason)) {
+                $exClass = get_class($reason);
+                throw new UnhandledPromiseException($reason, "Unhandled exception [$exClass]", 500, $reason instanceof \Throwable ? $reason : null);
+            } else {
+                throw new UnhandledPromiseException($reason, "Unhandled promise exception message [$reason]", 500);
+            }
+        };
     }
 }

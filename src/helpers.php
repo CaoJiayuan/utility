@@ -13,3 +13,17 @@ if (!function_exists('use_as_callable')) {
         };
     }
 }
+
+if (!function_exists('use_as_closure')) {
+    function use_as_closure($value) {
+        if (is_callable($value)) {
+            return function () use ($value) {
+                return call_user_func_array($value, func_get_args());
+            };
+        }
+
+        return function () use ($value) {
+            return $value;
+        };
+    }
+}

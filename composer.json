@@ -20,6 +20,7 @@
     "minimum-stability": "dev",
     "require": {},
     "suggest": {
-        "guzzlehttp/guzzle": "Required to make http request."
+        "guzzlehttp/guzzle": "Required to make http request.",
+        "intervention/image": "Required to use image feature."
     }
 }

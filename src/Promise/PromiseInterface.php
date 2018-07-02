@@ -17,7 +17,7 @@ interface PromiseInterface
 
     const STATUS_REJECTED = 'rejected';
 
-    public function then(callable $cb);
+    public function then(callable $cb = null, callable $rejected = null);
 
     public function rejected(callable $cb);
 }

@@ -82,6 +82,11 @@ class Client extends ObjectOb
         return $this->header('Accept', $accept);
     }
 
+    public function authorization($authorization)
+    {
+        return $this->header('Authorization', $authorization);
+    }
+
     public function acceptJson()
     {
         return $this->accept('application/json');
