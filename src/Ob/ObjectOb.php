@@ -25,7 +25,7 @@ abstract class ObjectOb extends Ob
         } catch (\Exception $exception) {
             $method = get_class($obj) . ':' .$name;
             $message = $exception->getMessage();
-            throw new \BadMethodCallException("Method call exception, method [$method], message [$message]");
+            throw new \BadMethodCallException("Method call exception, method [$method], message [$message]", 0, $exception);
         }
 
         if ($this->chainCall) {
@@ -44,7 +44,7 @@ abstract class ObjectOb extends Ob
         } catch (\Exception $exception) {
             $prop = get_class($obj) . ':' .$name;
             $message = $exception->getMessage();
-            throw new BadPropertyAccessException("Property access exception, property [$prop], message [$message]");
+            throw new BadPropertyAccessException("Property access exception, property [$prop], message [$message]", 0, $exception);
         }
     }
 }

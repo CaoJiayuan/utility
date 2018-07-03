@@ -13,6 +13,7 @@ use CaoJiayuan\Utility\Exceptions\UnhandledPromiseException;
 
 class Promise implements PromiseInterface, \JsonSerializable
 {
+    private $id;
 
     private $executor;
 
@@ -23,6 +24,7 @@ class Promise implements PromiseInterface, \JsonSerializable
     protected $catch;
 
     protected $fulfilled = null;
+
     protected $rejected = null;
     /**
      * @var static
@@ -32,7 +34,6 @@ class Promise implements PromiseInterface, \JsonSerializable
      * @var null
      */
     private $prev;
-    private $id;
 
 
     /**
@@ -70,7 +71,13 @@ class Promise implements PromiseInterface, \JsonSerializable
 
     public static function resolve($resolve)
     {
-        return new static($resolve);
+        return new static(function ($res) use ($resolve) {
+           if (is_callable($resolve)) {
+               $res(call_user_func($resolve));
+           } else {
+               $res($resolve);
+           }
+        });
     }
 
     public static function reject($reason)
@@ -94,9 +101,16 @@ class Promise implements PromiseInterface, \JsonSerializable
             try {
                 call_user_func_array($this->executor, [function ($val) use ($fulfilled) {
                     $return = use_as_closure($fulfilled)($val);
-                    $this->next && $this->next->setExecutor(function ($resolve) use ($return, $fulfilled, $val) {
-                        $resolve(is_null($fulfilled) ? $val : $return);
-                    });
+
+                    $this->next && $this->next->setExecutor(function ($res, $rej) use ($return, $fulfilled, $val) {
+                        if ($return instanceof self) {
+                            $return->then($res, $rej);
+                            $return->resolveIfNotResolved();
+                        } else {
+                            $res(is_null($fulfilled) ? $val : $return);
+                        }
+                    })->resolveIfNotResolved();
+
                 }, $rejector]);
                 $this->status = static::STATUS_FULFILLED;
             } catch (\Exception $exception) {
@@ -114,7 +128,14 @@ class Promise implements PromiseInterface, \JsonSerializable
 
                     $this->next->setExecutor(function ($res, $rej) use ($reject, $reason) {
                         $result = call_user_func($reject, $reason);
-                        $res($result);
+
+                        if ($result instanceof self) {
+                            $result->then($res, $rej);
+                            $result->resolveIfNotResolved();
+                        } else {
+                            $res($result);
+                        }
+
                     })->resolveIfNotResolved();
                 }
             }
@@ -186,5 +207,12 @@ class Promise implements PromiseInterface, \JsonSerializable
             'status' => $this->status,
             'next'   => $this->next
         ];
+    }
+
+    public function setStatus($status)
+    {
+        $this->status = $status;
+
+        return $this;
     }
 }
