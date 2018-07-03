@@ -32,6 +32,11 @@ class Client extends ObjectOb
         parent::__construct(new Value(new Guzzle()));
     }
 
+    public static function create($options = [])
+    {
+        return new static($options);
+    }
+
     public function config($options = [])
     {
         $this->options = $options;

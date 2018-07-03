@@ -11,7 +11,7 @@ namespace CaoJiayuan\Utility\Promise;
 
 use CaoJiayuan\Utility\Exceptions\UnhandledPromiseException;
 
-class Promise implements PromiseInterface
+class Promise implements PromiseInterface, \JsonSerializable
 {
 
     private $executor;
@@ -24,35 +24,46 @@ class Promise implements PromiseInterface
 
     protected $fulfilled = null;
     protected $rejected = null;
+    /**
+     * @var static
+     */
     protected $next = null;
+    /**
+     * @var null
+     */
+    private $prev;
+    private $id;
 
 
     /**
      * Promise constructor.
      * @param $executor
+     * @param Promise $prev
      */
-    public function __construct($executor)
+    public function __construct($executor, Promise $prev = null)
     {
+        $this->id = $this->generateId();
         $this->status = static::STATUS_PENDING;
         $this->executor = use_as_callable($executor);
+        $this->prev = $prev;
+    }
+
+    protected function generateId()
+    {
+        return md5(microtime(true) . uniqid());
     }
 
     public function then(callable $fulfilled = null, callable $rejected = null)
     {
         $this->fulfilled = $fulfilled;
         $this->rejected = $rejected;
-        return $this;
+
+        return $this->next();
     }
 
-    protected function next(callable $fulfilled = null, callable $rejected = null)
+    protected function next()
     {
-        $this->next = new static(function ($resolve, $reject) use ($fulfilled) {
-
-
-            call_user_func_array($this->executor, [use_as_callable($fulfilled), $reject]);
-
-        });
-        $this->next->rejected($rejected);
+        $this->next = new static(null, $this);
 
         return $this->next;
     }
@@ -73,29 +84,43 @@ class Promise implements PromiseInterface
 
     public function resolveIfNotResolved()
     {
+        $this->prev && $this->prev->resolveIfNotResolved();
+
         $fulfilled = $this->fulfilled;
         $reject = $this->rejected;
         if ($this->status == static::STATUS_PENDING) {
+            $this->status = static::STATUS_RESOLVING;
             $rejector = $this->getRejector();
             try {
-                $value = call_user_func_array($this->executor, [use_as_callable($fulfilled), $rejector]);
+                call_user_func_array($this->executor, [function ($val) use ($fulfilled) {
+                    $return = use_as_closure($fulfilled)($val);
+                    $this->next && $this->next->setExecutor(function ($resolve) use ($return, $fulfilled, $val) {
+                        $resolve(is_null($fulfilled) ? $val : $return);
+                    });
+                }, $rejector]);
                 $this->status = static::STATUS_FULFILLED;
-                return static::resolve($value);
-            } catch (UnhandledPromiseException $exception) {
-                if (is_null($reject)) {
+            } catch (\Exception $exception) {
+                if (is_null($reject) && is_null($this->next)) {
                     $this->status = static::STATUS_REJECTED;
                     throw $exception;
                 }
                 $this->status = static::STATUS_FULFILLED;
-                return new static(function ($res, $rej) use ($reject, $exception) {
-                    $val = call_user_func($reject, $exception->getReason());
+                $reason = $exception instanceof UnhandledPromiseException ? $exception->getReason() : $exception;
 
-                    $res($val);
-                });
+                if (is_null($this->next)) {
+                    call_user_func($reject, $reason);
+                } else {
+                    $reject = $reject ?: $this->getRejector();
+
+                    $this->next->setExecutor(function ($res, $rej) use ($reject, $reason) {
+                        $result = call_user_func($reject, $reason);
+                        $res($result);
+                    })->resolveIfNotResolved();
+                }
             }
         }
 
-        return $this;
+        return $this->status;
     }
 
     public function rejected(callable $cb)
@@ -104,7 +129,7 @@ class Promise implements PromiseInterface
     }
 
 
-    public function __destruct()
+    function __destruct()
     {
         $this->resolveIfNotResolved();
     }
@@ -117,10 +142,49 @@ class Promise implements PromiseInterface
         return function ($reason) {
             if (is_object($reason)) {
                 $exClass = get_class($reason);
-                throw new UnhandledPromiseException($reason, "Unhandled exception [$exClass]", 500, $reason instanceof \Throwable ? $reason : null);
+                $append = '';
+                if ($reason instanceof \Throwable) {
+                    $msg = $reason->getMessage();
+                    $append = ", message [$msg]";
+                }
+                throw new UnhandledPromiseException($reason, "Unhandled exception [$exClass]" . $append, 500, $reason instanceof \Throwable ? $reason : null);
             } else {
                 throw new UnhandledPromiseException($reason, "Unhandled promise exception message [$reason]", 500);
             }
         };
+    }
+
+    /**
+     * @param \Closure $executor
+     * @return $this
+     */
+    public function setExecutor(\Closure $executor)
+    {
+        $this->executor = $executor;
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    /**
+     * Specify data which should be serialized to JSON
+     * @link http://php.net/manual/en/jsonserializable.jsonserialize.php
+     * @return mixed data which can be serialized by <b>json_encode</b>,
+     * which is a value of any type other than a resource.
+     * @since 5.4.0
+     */
+    public function jsonSerialize()
+    {
+        return [
+            'id'     => $this->id,
+            'status' => $this->status,
+            'next'   => $this->next
+        ];
     }
 }

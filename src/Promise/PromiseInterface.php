@@ -13,6 +13,8 @@ interface PromiseInterface
 {
     const STATUS_PENDING = 'pending';
 
+    const STATUS_RESOLVING = 'resolving';
+
     const STATUS_FULFILLED = 'fulfilled';
 
     const STATUS_REJECTED = 'rejected';
