@@ -10,6 +10,8 @@ namespace CaoJiayuan\Utility\Promise;
 
 
 use CaoJiayuan\Utility\Exceptions\UnhandledPromiseException;
+use function CaoJiayuan\Utility\use_as_callable;
+use function CaoJiayuan\Utility\use_as_closure;
 
 class Promise implements PromiseInterface, \JsonSerializable
 {
