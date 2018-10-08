@@ -26,10 +26,13 @@ class Task
     {
         if ($this->run) {
             $this->generator->next();
-        } else {
-            $this->generator->current();
         }
 
+        $result = $this->generator->current();
+
+        if (is_callable($result)) {
+            $result();
+        }
         $this->run = true;
     }
 
