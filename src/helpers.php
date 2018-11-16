@@ -8,6 +8,7 @@ function use_as_callable($value)
         return $value;
     }
 
+
     return function () use ($value) {
         return $value;
     };
