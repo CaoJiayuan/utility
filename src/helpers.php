@@ -114,3 +114,29 @@ function serial_number($num, $length = 4, $prepend = '0')
 {
     return sprintf("%'{$prepend}{$length}d", $num);
 }
+
+function array_string($array){
+    if (!is_array($array)) {
+        if (is_string($array)) {
+            return "'$array'";
+        }
+
+        return $array;
+    }
+    $str = '[';
+    $components = [];
+    foreach ($array as  $key => $v){
+        if (is_string($key)) {
+            $key = "'$key'";
+        }
+        if (is_numeric($key)) {
+            $components[] = array_string($v);
+        } else {
+            $components[] = "$key => " . array_string($v);
+        }
+    }
+
+    $str .= implode(',', $components);
+    $str .= ']';
+    return $str;
+}
