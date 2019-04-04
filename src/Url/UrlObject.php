@@ -47,9 +47,10 @@ class UrlObject
 
     public function toString()
     {
-        return sprintf('%s%s%s?%s', $this->getScheme(),
+        $queryString = http_build_query($this->queries);
+        return sprintf('%s%s%s%s', $this->getScheme(),
             $this->getHost(),
-            $this->getPath(), http_build_query($this->queries)
+            $this->getPath(), $queryString ? '?' . $queryString : ''
         );
     }
 
