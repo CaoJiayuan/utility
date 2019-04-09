@@ -12,8 +12,8 @@ namespace CaoJiayuan\Utility;
 class Utils
 {
 
-    protected static $singleValues = [];
-    protected static $singleValueExpires = [];
+    protected static $onceValues = [];
+    protected static $onceValueExpires = [];
 
     /**
      * Get a value, cached in request lifetime
@@ -21,26 +21,26 @@ class Utils
      * @param \Closure $processor
      * @return mixed
      */
-    public static function acquireSingleValue($key, \Closure $processor)
+    public static function once($key, \Closure $processor)
     {
-        if (in_array($key, static::$singleValueExpires)) {
-            if (array_key_exists($key, static::$singleValues)) {
-                unset(static::$singleValues[$key]);
+        if (in_array($key, static::$onceValueExpires)) {
+            if (array_key_exists($key, static::$onceValues)) {
+                unset(static::$onceValues[$key]);
             }
-            static::$singleValueExpires = array_filter(static::$singleValueExpires, function ($v) use ($key) {
+            static::$onceValueExpires = array_filter(static::$onceValueExpires, function ($v) use ($key) {
                 return $v != $key;
             });
         }
 
-        if (array_key_exists($key, static::$singleValues)) {
-            return static::$singleValues[$key];
+        if (array_key_exists($key, static::$onceValues)) {
+            return static::$onceValues[$key];
         }
 
-        return static::$singleValues[$key] = $processor();
+        return static::$onceValues[$key] = $processor();
     }
 
-    public static function expireSingleValue($key)
+    public static function expireOnceValue($key)
     {
-        return static::$singleValueExpires[] = $key;
+        return static::$onceValueExpires[] = $key;
     }
 }
