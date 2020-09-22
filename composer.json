@@ -20,7 +20,6 @@
     "minimum-stability": "dev",
     "prefer-stable": true,
     "require": {
-        "guzzlehttp/guzzle": "^6.2"
     },
     "suggest": {
         "guzzlehttp/guzzle": "Required to make http request.",
